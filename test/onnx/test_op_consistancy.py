@@ -224,8 +224,12 @@ def opsets_after(opset: int) -> Callable[[int], bool]:
 # Ops to be tested for consistency between onnx and pytorch
 ALLOWLIST_OP = (
     "ceil",
+    "div",
+    "floor_divide",
+    "remainder",
     "sqrt",
     "t",
+    "true_divide",
 )
 
 # fmt: off
@@ -236,22 +240,37 @@ ALLOWLIST_OP = (
 # The list should be sorted alphabetically by op name.
 EXPECTED_SKIPS_OR_FAILS: Tuple[DecorateMeta, ...] = (
     skip("ceil", dtypes=BOOL_TYPES + INT_TYPES + QINT_TYPES + COMPLEX_TYPES, reason="not supported by onnx"),
+    xfail("div", variant_name="no_rounding_mode", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
+    xfail("div", variant_name="floor_rounding", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
+    xfail("div", variant_name="trunc_rounding", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
+    skip(
+        "div", variant_name="no_rounding_mode", dtypes=[torch.uint8, torch.int8, torch.int16],
+        reason="Div for uint8, int8, int16 not implemented in onnx runtime"
+    ),
+    skip(
+        "div", variant_name="floor_rounding", dtypes=[torch.uint8, torch.int8, torch.int16],
+        reason="Div for uint8, int8, int16 not implemented in onnx runtime"
+    ),
+    skip(
+        "div", variant_name="trunc_rounding", dtypes=[torch.uint8, torch.int8, torch.int16],
+        reason="Div for uint8, int8, int16 not implemented in onnx runtime"
+    ),
+    xfail("floor_divide", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
     skip("sqrt", dtypes=BOOL_TYPES + QINT_TYPES + COMPLEX_TYPES, reason="not supported by onnx"),
     xfail("t", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
     skip("t", dtypes=[torch.float16], reason="flaky tests in CI"),
+    xfail("true_divide", dtypes=COMPLEX_TYPES, reason="jit tracer error for complex types"),
 )
 # fmt: on
 
 # Expected opset specific fails for ops that do not support specific opsets
 
 EXPECTED_OPSET_FAILS: Tuple[XfailOpset, ...] = (
-    # TODO: sqrt for torch.bfloat16 is just an example. Replace it with more meaningful
-    # skips when there are.
     XfailOpset(
-        "sqrt",
-        dtypes=[torch.bfloat16],
-        opsets=[opsets_before(13)],
-        reason="Sqrt not defined for bf16 before opset 13",
+        "remainder",
+        dtypes=[torch.uint8, torch.int8, torch.int16],
+        opsets=[opsets_before(11)],
+        reason="Sub not defined for u8, i16 before opset 14. Mod is used after 11 so we support from opset 11.",
     ),
 )
 
